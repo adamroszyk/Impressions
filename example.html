@@ -1,0 +1,487 @@
+<html style="padding:0;margin:0;border:0;">
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv='Content-Type' content='text/html;charset=utf-8'/>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1,IE=edge" />
+    <title>Depthmap Viewer</title>
+    <link rel='stylesheet' type='text/css' href='https://www.x3dom.org/download/x3dom.css'/>
+    <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-3.3.1.min.js"></script>
+    <script type="text/javascript" src="https://x3dom.org/download/x3dom.js"></script>
+
+    <style>
+        .labelOverlay
+        {
+            position:fixed;
+            width: 400px;
+            padding:8px;
+            margin:16px;
+            background:#888888;
+            background: linear-gradient(#BBBBBB, #888888); 
+            border-radius:8px;
+            border:2px solid #EEEEEE;            
+            box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.25);            
+            font-weight:bold;
+            color:white;            
+            z-index:20000;
+        }        
+        .x3domContext
+        {
+            border: none;
+            background:#888888;
+            background: linear-gradient(#777777, #333333); 
+        }
+        .paramSlider
+        {
+            margin: 0 8px;
+        }
+    </style>    
+    <script>
+        $(function() {
+            $( "#sliderAlpha" ).slider({
+                min: 0.0, max: 1.0, step: 0.1, value: 0.25,
+                slide: function( event, ui ) {
+                    changeShaderParamValue('alphaParamField', ui.value);
+                }
+            });
+        });
+
+        $(function() {
+            $( "#sliderBeta" ).slider({
+                min: 0.0, max: 1.0, step: 0.1, value: 0.5,
+                slide: function( event, ui ) {
+                    changeShaderParamValue('betaParamField', ui.value);
+                }
+            });
+        });
+  
+        function changeShaderParamValue(fieldElementName, value)
+        {
+            var fieldDOMElement = document.getElementById(fieldElementName);
+            
+            if (fieldDOMElement)
+            {
+                fieldDOMElement.setAttribute("value", parseFloat(value));
+                
+                var labelElement = document.getElementById(fieldElementName + "Label");
+                
+                if (labelElement)
+                {
+                    labelElement.innerHTML = value;
+                }
+            }
+        }
+    </script>           
+    
+    <script type="text/javascript" src="https://x3dom.org/download/x3dom.js"></script>
+    
+</head>
+<body style="padding:0;margin:0;border:0;">
+
+
+<div id="content">
+    <X3D class="x3domContext" id='myX3DWorld' style="width:100%;height:100%">
+        <Scene DEF='scene'>                
+            <Viewpoint position="10 0 14" orientation="0 0 0 -1"  zNear="0.01" zFar="10000"></Viewpoint>
+                <inline url="lowpoly.x3d"> </inline>
+                <Background skyColor="0.48 0.4 0.35" />
+	</Background>
+                <transform translation='10 16 3' rotation='0 -1 1 3.1'> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+
+                    <transform translation='25 16 3' rotation="0 -1 1 3.1"> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="1color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="1depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+
+
+                    <transform translation='40 16 3' rotation="0 -1 1 3.1"> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="2color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="2depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+
+
+                    <transform translation='55 16 3' rotation="0 -1 1 3.1"> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="3color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="3depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+
+                    <transform translation='70 16 3' rotation="0 -1 1 3.1"> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="4color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="4depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+
+                    <transform translation='85 16 3' rotation="0 -1 1 3.1"> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="5color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="5depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+
+                    <transform translation='100 16 3' rotation="0 -1 1 3.1"> 
+                                <shape>
+                                    <appearance>
+                                        <MultiTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="6color.mov"></MovieTexture>
+                                            <MovieTexture repeatS="false" repeatT="false" loop="true" url="6depth.mov"></MovieTexture>
+                                        </MultiTexture>
+                                        <composedshader>
+                                            <field name='diffuseMap' type='SFInt32' value='0'></field>
+                                            <field name='heatMap' type='SFInt32' value='1'></field>
+                                            <shaderpart type='VERTEX'>
+                                                attribute vec3 position;
+                                                attribute vec2 texcoord;
+
+                                                uniform mat4 modelViewProjectionMatrix;
+                                                uniform mat4 normalMatrix;
+                                                uniform sampler2D heatMap;
+                                                varying vec2 fragTexCoord;
+                                                varying vec3 fragNormal;
+
+                                                void main()
+                                                {
+                                                    fragTexCoord = texcoord;
+                                                
+                                                    vec3 pos = position;
+                                                    
+                                                    vec3 heatColor = texture2D(heatMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    float displacement = (heatColor.r + heatColor.g + heatColor.b) / 3.0;
+                                                
+                                                    pos.z += displacement * 15.05;
+                                                    
+                                                    gl_Position = modelViewProjectionMatrix * vec4(pos, 1.0);
+                                                }
+                                            </shaderpart>
+                                            <shaderpart def="frag" type='FRAGMENT'>
+                                                #ifdef GL_ES
+                                                precision highp float;
+                                                #endif
+
+                                                uniform sampler2D diffuseMap;
+                                                varying vec2 fragTexCoord;
+                                                
+                                                varying float displacement;
+
+                                                void main()
+                                                {
+                                                    vec3 diffuse = texture2D(diffuseMap, vec2(1.0 - fragTexCoord.x, fragTexCoord.y)).rgb;
+                                                    gl_FragColor = vec4(diffuse, 1.0);
+                                                }
+                                            </shaderpart>
+                                        </composedshader>
+                                    </appearance>
+                                    <plane size="10 10" subdivision="640 720"></plane>
+                                </shape>
+                    </transform>
+        </Scene>
+    </X3D>
+</div>
+</body>
+</html>        
+    
